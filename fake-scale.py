@@ -25,9 +25,12 @@ output_names = [o.strip() + ".jsonl" if not o.strip().endswith(".jsonl") else o.
 if len(input_folders) != len(output_names):
     raise ValueError("Number of input folders and output filenames must match.")
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
+
 def load_audio(file, sr=None):
     y, sr = librosa.load(file, sr=sr, mono=True)
-    waveform = torch.tensor(y).unsqueeze(0)
+    waveform = torch.tensor(y).unsqueeze(0).to(device)
     return waveform, sr
 
 for folder, output_name in zip(input_folders, output_names):
@@ -43,7 +46,7 @@ for folder, output_name in zip(input_folders, output_names):
 
     for model_name in models:
         print(f"\n=== USING MODEL: {model_name} ===\n")
-        model = HFAudioClassifier.from_pretrained(model_name)
+        model = HFAudioClassifier.from_pretrained(model_name).to(device)
         model.eval()
 
         fake_scores = []
@@ -54,10 +57,11 @@ for folder, output_name in zip(input_folders, output_names):
                 except Exception as e:
                     raise RuntimeError(f"Failed to load {file}: {e}")
 
-                predictions = model(waveform)
-                probs = torch.sigmoid(predictions).squeeze()
-                pred_class = int(torch.round(probs).item())
-                label = "FAKE" if pred_class == 1 else "HUMAN"
+                with torch.no_grad():
+                    predictions = model(waveform)
+                    probs = torch.sigmoid(predictions).squeeze()
+                    pred_class = int(torch.round(probs).item())
+                    label = "FAKE" if pred_class == 1 else "HUMAN"
 
                 fake_scores.append(probs.item())
 
