@@ -19,12 +19,18 @@ models = [
 input_folders = input("Enter input folder paths (comma-separated): ").strip().split(",")
 input_folders = [f.strip() for f in input_folders]
 
+output_names = input("Enter output filenames for each folder (comma-separated, no extension needed): ").strip().split(",")
+output_names = [o.strip() + ".jsonl" if not o.strip().endswith(".jsonl") else o.strip() for o in output_names]
+
+if len(input_folders) != len(output_names):
+    raise ValueError("Number of input folders and output filenames must match.")
+
 def load_audio(file, sr=None):
     y, sr = librosa.load(file, sr=sr, mono=True)
     waveform = torch.tensor(y).unsqueeze(0)
     return waveform, sr
 
-for folder in input_folders:
+for folder, output_name in zip(input_folders, output_names):
     folder_path = Path(folder)
     if not folder_path.exists() or not folder_path.is_dir():
         print(f"Skipping invalid folder: {folder}")
@@ -34,10 +40,6 @@ for folder in input_folders:
     if not audio_files:
         print(f"No audio files found in {folder}, skipping.")
         continue
-
-    output_name = input(f"Enter output filename for folder '{folder}' (no extension needed): ").strip()
-    if not output_name.endswith(".jsonl"):
-        output_name += ".jsonl"
 
     for model_name in models:
         print(f"\n=== USING MODEL: {model_name} ===\n")
@@ -72,7 +74,7 @@ for folder in input_folders:
         print(f"   → Avg Fake: {avg_fake:.2f}%")
         print(f"   → Avg Human: {avg_human:.2f}%\n")
 
-    # After processing the folder, upload to Hugging Face
+    # Upload to Hugging Face after processing this folder
     print(f"Uploading {output_name} to Hugging Face dataset...")
     os.system(f"hf upload sleeping-ai/SONICS-Humanfakebench {output_name} --repo-type=dataset")
     print(f"Finished uploading {output_name}\n")
