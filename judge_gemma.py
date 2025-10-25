@@ -3,6 +3,7 @@ from pathlib import Path
 import torch
 import json
 from tqdm import tqdm
+import os
 
 def judge_gemma(model_id="google/gemma-3n-e2b-it"):
     processor = AutoProcessor.from_pretrained(model_id)
@@ -22,6 +23,8 @@ def judge_gemma(model_id="google/gemma-3n-e2b-it"):
 
     if len(folders) != len(output_names):
         raise ValueError("Number of folders and output filenames must match.")
+
+    generated_files = []
 
     for folder, output_name in zip(folders, output_names):
         folder_path = Path(folder)
@@ -76,8 +79,13 @@ def judge_gemma(model_id="google/gemma-3n-e2b-it"):
                 }
                 out.write(json.dumps(record) + "\n")
 
+        generated_files.append(output_name)
         print(f"Saved results for {folder} → {output_name}")
 
-# Run
+    print("\nUploading generated JSONL files to Hugging Face dataset...")
+    for f in generated_files:
+        os.system(f"hf upload sleeping-ai/Gemma-Judge {f} --repo-type=dataset")
+    print("Upload complete: sleeping-ai/Gemma-Judge")
+
 if __name__ == "__main__":
     judge_gemma()
